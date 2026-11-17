@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.env
+jobs/
+checkpoints/
+*.mp4
+*.wav
+*.pt
