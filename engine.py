@@ -64,7 +64,7 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
     src=d/"source_video.mp4"; aud=d/"replacement_audio.wav"
     if not src.exists(): shutil.copy2(video_file,src)
     if not aud.exists(): run(["ffmpeg","-y","-i",audio_file,"-vn","-ac","2","-ar","16000","-c:a","pcm_s16le",aud])
-    width,height,fps=probe_video(src)
+    width,height,source_fps=probe_video(src)\n    fps=25.0  # LatentSync inference is trained/evaluated at 25 FPS.
     if quality=="720p": ow,oh=1280,720
     elif quality=="1080p": ow,oh=1920,1080
     else: ow,oh=width,height
