@@ -9,8 +9,19 @@ if not up.exists(): sh(["git","clone","https://github.com/bytedance/LatentSync.g
 os.chdir(up)
 sh(["bash","-lc","pip install -q -r requirements.txt"])
 sh([sys.executable,"-m","pip","install","-q","huggingface_hub==0.30.2"])
-# Model weights are fetched from the official ByteDance LatentSync 1.5 repository.
-sh(["bash","-lc","huggingface-cli download ByteDance/LatentSync-1.5 latentsync_unet.pt --local-dir checkpoints"])
-sh(["bash","-lc","mkdir -p checkpoints/whisper && huggingface-cli download ByteDance/LatentSync-1.5 whisper/tiny.pt --local-dir checkpoints"])
+# Persist the large model weights in Drive so a Colab reconnect does not download 5+ GB again.
+cache=pathlib.Path("/content/drive/MyDrive/GHX_Lip_Sync_Studio/model_cache")
+(cache/"whisper").mkdir(parents=True,exist_ok=True)
+sh(["bash","-lc",f"huggingface-cli download ByteDance/LatentSync-1.5 latentsync_unet.pt --local-dir '{cache}'"])
+sh(["bash","-lc",f"huggingface-cli download ByteDance/LatentSync-1.5 whisper/tiny.pt --local-dir '{cache}'"])
+(up/"checkpoints").mkdir(exist_ok=True)
+(up/"checkpoints"/"whisper").mkdir(exist_ok=True)
+for source,target in [
+    (cache/"latentsync_unet.pt",up/"checkpoints"/"latentsync_unet.pt"),
+    (cache/"whisper"/"tiny.pt",up/"checkpoints"/"whisper"/"tiny.pt")
+]:
+    if target.exists() or target.is_symlink(): target.unlink()
+    target.symlink_to(source)
 os.chdir(repo)
-print("Setup finished. Confirm the checkpoint paths exist before launching.")
+print("Setup complete. Persistent Drive model cache:",cache)
+print("LatentSync 1.5 checkpoints:", (up/"checkpoints"/"latentsync_unet.pt").exists(), (up/"checkpoints"/"whisper"/"tiny.pt").exists())
