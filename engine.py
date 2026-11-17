@@ -68,7 +68,7 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
     if quality=="720p": ow,oh=1280,720
     elif quality=="1080p": ow,oh=1920,1080
     else: ow,oh=width,height
-    total=max(1,int((target+CHUNK_SECONDS-0.001)//CHUNK_SECONDS))
+    import math\n    total=max(1,math.ceil(target/CHUNK_SECONDS))
     manifest=d/"manifest.json"
     state=json.loads(manifest.read_text()) if manifest.exists() else {"completed":[]}
     state.update({"job":job,"total_chunks":total,"quality":quality,"duration":target})
