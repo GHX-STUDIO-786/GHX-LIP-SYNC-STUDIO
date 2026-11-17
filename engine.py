@@ -108,6 +108,7 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
         str(checkpoint),device="cpu")
     unet=unet.to(dtype=dtype)
     pipeline=LipsyncPipeline(vae=vae,audio_encoder=audio_encoder,unet=unet,scheduler=scheduler).to("cuda")
+    pipeline.enable_vae_slicing()  # Reduce peak VRAM use on Colab T4.
     set_seed(1247)
     for i in range(total):
         start=i*CHUNK_SECONDS; seconds=min(CHUNK_SECONDS,target-start)
