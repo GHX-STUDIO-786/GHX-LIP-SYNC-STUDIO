@@ -88,7 +88,7 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
         result=d/"results"/f"r_{i:05d}.mp4"
         if str(i) in state["completed"] and valid_video(result): continue
         report(0.04+0.90*i/total,f"Preparing and processing chunk {i+1}/{total}")
-        run(["ffmpeg","-y","-ss",start,"-i",src,"-t",seconds,"anullsrc=channel_layout=stereo:sample_rate=16000","-shortest","-an","-vf",f"fps={fps:.6f}","-c:v","libx264","-preset","veryfast","-crf","16","-pix_fmt","yuv420p","-movflags","+faststart",vchunk])
+        run(["ffmpeg","-y","-ss",start,"-i",src,"-t",seconds,"-an","-vf",f"fps={fps:.6f}","-c:v","libx264","-preset","veryfast","-crf","16","-pix_fmt","yuv420p","-movflags","+faststart",vchunk])
         run(["ffmpeg","-y","-ss",start,"-i",aud,"-t",seconds,"-vn","-ac","2","-ar","16000","-c:a","pcm_s16le",achunk])
         ok=False; error=""
         for attempt in range(MAX_RETRIES+1):
