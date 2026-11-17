@@ -9,7 +9,7 @@ Google Colab-first workflow using the official ByteDance LatentSync inference pr
 - Source video's original audio is discarded; uploaded audio is muxed into final MP4.
 - 8-second chunks, retry handling, Drive checkpointing and resume support.
 - Output options: 720p, 1080p or Auto (preserve source dimensions).
-- H.264/AAC MP4 and Open in Colab notebook.
+- H.264/AAC MP4 at the model's 25 FPS working rate, and Open in Colab notebook.
 - Designed for Google Colab T4 with LatentSync 1.5.
 
 ## Open in Google Colab
