@@ -82,6 +82,32 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
     for p in (inference,checkpoint,config,whisper):
         if not p.exists(): raise RuntimeError(f"Required LatentSync file is missing: {p}. Re-run the setup cell.")
     report(0.02,f"Job {job}: {total} chunks · {target/60:.1f} minutes")
+    # Load the diffusion pipeline once per job, not once per segment. This is essential
+    # for practical long-form runs because each chunk would otherwise reload 5 GB weights.
+    import sys
+    os.chdir(UPSTREAM)
+    if str(UPSTREAM) not in sys.path: sys.path.insert(0,str(UPSTREAM))
+    from omegaconf import OmegaConf
+    from diffusers import AutoencoderKL, DDIMScheduler
+    from latentsync.models.unet import UNet3DConditionModel
+    from latentsync.pipelines.lipsync_pipeline import LipsyncPipeline
+    from accelerate.utils import set_seed
+    from latentsync.whisper.audio2feature import Audio2Feature
+    config_obj=OmegaConf.load(str(config))
+    fp16_supported=torch.cuda.get_device_capability()[0]>7
+    dtype=torch.float16 if fp16_supported else torch.float32
+    scheduler=DDIMScheduler.from_pretrained(str(UPSTREAM/"configs"))
+    whisper_path=UPSTREAM/"checkpoints"/"whisper"/"tiny.pt"
+    audio_encoder=Audio2Feature(model_path=str(whisper_path),device="cuda",
+        num_frames=config_obj.data.num_frames,audio_feat_length=config_obj.data.audio_feat_length)
+    vae=AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse",torch_dtype=dtype)
+    vae.config.scaling_factor=0.18215
+    vae.config.shift_factor=0
+    unet,_=UNet3DConditionModel.from_pretrained(OmegaConf.to_container(config_obj.model),
+        str(checkpoint),device="cpu")
+    unet=unet.to(dtype=dtype)
+    pipeline=LipsyncPipeline(vae=vae,audio_encoder=audio_encoder,unet=unet,scheduler=scheduler).to("cuda")
+    set_seed(1247)
     for i in range(total):
         start=i*CHUNK_SECONDS; seconds=min(CHUNK_SECONDS,target-start)
         vchunk=d/"chunks"/f"v_{i:05d}.mp4"
@@ -94,11 +120,11 @@ def sync_long_video(video_file, audio_file, quality="Auto", inference_steps=20, 
         ok=False; error=""
         for attempt in range(MAX_RETRIES+1):
             try:
-                cmd=["python",str(inference),"--unet_config_path",str(config),"--inference_ckpt_path",str(checkpoint),
-                     "--video_path",str(vchunk),"--audio_path",str(achunk),"--video_out_path",str(result),
-                     "--inference_steps",str(int(inference_steps)),"--guidance_scale",str(float(guidance)),
-                     "--temp_dir",str(d/"temp"/f"{i:05d}"),"--seed","1247"]
-                run(cmd)
+                pipeline(video_path=str(vchunk),audio_path=str(achunk),video_out_path=str(result),
+                    num_frames=config_obj.data.num_frames,num_inference_steps=int(inference_steps),
+                    guidance_scale=float(guidance),weight_dtype=dtype,
+                    width=config_obj.data.resolution,height=config_obj.data.resolution,
+                    mask_image_path=config_obj.data.mask_image_path,temp_dir=str(d/"temp"/f"{i:05d}"))
                 if not valid_video(result): raise RuntimeError("Model did not produce a valid video.")
                 ok=True; break
             except Exception as exc:
